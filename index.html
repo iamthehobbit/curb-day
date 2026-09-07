@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1F4B3E">
+<title>Curb Day — Lower Merion</title>
+<style>
+  :root{
+    --paper:      #FAF7F0;
+    --paper-line: #E7E1D2;
+    --ink:        #1B2420;
+    --ink-soft:   #5C6660;
+    --green:      #1F4B3E;
+    --green-soft: #E4EAE1;
+    --kraft:      #8C5A2B;
+    --kraft-soft: #F1E3CE;
+    --shift:      #B9791E;
+    --shift-soft: #F7E9D2;
+    --today:      #E8B700;
+    --today-wash: #FFF4CC;
+  }
+
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  html,body{
+    margin:0; padding:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+  }
+
+  body{
+    background-image: radial-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 14px 14px;
+    background-position: -7px -7px;
+  }
+
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    padding:0 0 48px;
+    min-height:100vh;
+  }
+
+  header{ padding:28px 20px 18px; }
+
+  .kicker{
+    font-size:13px;
+    letter-spacing:.02em;
+    color:var(--ink-soft);
+    margin:0 0 4px;
+  }
+
+  h1{
+    font-size:26px;
+    line-height:1.15;
+    font-weight:700;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  h1 em{ font-style:normal; color:var(--green); }
+
+  .zones{ display:flex; gap:8px; padding:0 20px 8px; }
+
+  .zone-btn{
+    flex:1;
+    padding:11px 0;
+    border-radius:10px 10px 3px 3px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    color:var(--ink-soft);
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    transition: transform .12s ease, background .15s ease, color .15s ease;
+  }
+  .zone-btn:active{ transform: scale(0.96); }
+  .zone-btn.active{ background:var(--green); color:#fff; border-color:var(--green); }
+
+  .mode-toggle{
+    display:flex;
+    gap:0;
+    margin:2px 20px 2px;
+    border:1px solid var(--paper-line);
+    border-radius:8px;
+    overflow:hidden;
+    width:fit-content;
+  }
+  .mode-btn{
+    padding:7px 16px;
+    border:none;
+    background:#fff;
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .mode-btn.active{ background:var(--green); color:#fff; }
+
+  .day-note{
+    padding:14px 20px 0;
+    font-size:13.5px;
+    color:var(--ink-soft);
+    line-height:1.5;
+  }
+  .day-note strong{ color:var(--ink); }
+
+  .month-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:22px 20px 10px;
+  }
+  .month-nav button{
+    width:38px; height:38px;
+    border-radius:50%;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    font-size:18px;
+    color:var(--green);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .month-nav button:active{ background:var(--green-soft); }
+
+  .month-title{ font-size:19px; font-weight:700; letter-spacing:-0.01em; }
+
+  .grid-wrap{ padding:0 14px; }
+
+  .weekday-row{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    padding:6px 6px 2px;
+  }
+  .weekday-row div{
+    text-align:center;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+
+  .cal-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:4px;
+    padding:2px 6px 0;
+  }
+
+  .cell{
+    aspect-ratio: 1 / 1.08;
+    border-radius:10px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    padding:6px 5px;
+    display:flex;
+    flex-direction:column;
+    justify-content:flex-start;
+    position:relative;
+    overflow:hidden;
+  }
+  .cell.empty{ border-color:transparent; background:transparent; }
+
+  .cell .num{ font-size:12.5px; font-weight:600; color:var(--ink-soft); }
+
+  .cell.pickup{ border-color:var(--green); background:var(--green-soft); }
+  .cell.pickup .num{ color:var(--green); font-weight:700; }
+
+  .cell.pickup.shifted{ border-color:var(--shift); background:var(--shift-soft); }
+  .cell.pickup.shifted .num{ color:var(--shift); }
+
+  .cell.today{ box-shadow: 0 0 0 2px var(--today); }
+  .cell.today:not(.pickup){ background: var(--today-wash); }
+
+  .badge{
+    margin-top:auto;
+    font-size:9.5px;
+    font-weight:700;
+    letter-spacing:0;
+    padding:2px 4px;
+    border-radius:5px;
+    line-height:1.2;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:clip;
+    text-align:center;
+  }
+  .badge.paper{ background:var(--kraft-soft); color:var(--kraft); }
+  .badge.commingle{ background:#DCE9E0; color:#2E6B4A; }
+
+  .shift-tag{
+    position:absolute;
+    top:5px; right:5px;
+    width:6px; height:6px;
+    border-radius:50%;
+    background:var(--shift);
+  }
+
+  /* Weekly list view */
+  .week-list{ padding:4px 20px 0; display:none; }
+
+  .week-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding:14px 14px;
+    border:1px solid var(--paper-line);
+    border-radius:12px;
+    background:#fff;
+    margin-bottom:8px;
+  }
+  .week-row.pickup{ border-color:var(--green); background:var(--green-soft); }
+  .week-row.pickup.shifted{ border-color:var(--shift); background:var(--shift-soft); }
+  .week-row.today{ box-shadow:0 0 0 2px var(--today); }
+  .week-row.today:not(.pickup){ background:var(--today-wash); }
+
+  .week-row .wr-date{
+    font-size:14.5px;
+    font-weight:700;
+    color:var(--ink);
+  }
+  .week-row .wr-date span{
+    display:block;
+    font-size:11.5px;
+    font-weight:600;
+    color:var(--ink-soft);
+    margin-top:1px;
+  }
+  .week-row .wr-right{ text-align:right; }
+  .week-row .wr-none{ font-size:12.5px; color:var(--ink-soft); }
+  .week-row .wr-badge{
+    font-size:11.5px;
+    font-weight:700;
+    padding:4px 8px;
+    border-radius:6px;
+    display:inline-block;
+  }
+  .week-row .wr-badge.paper{ background:var(--kraft-soft); color:var(--kraft); }
+  .week-row .wr-badge.commingle{ background:#DCE9E0; color:#2E6B4A; }
+  .week-row .wr-shift-note{
+    font-size:10.5px;
+    color:var(--shift);
+    margin-top:3px;
+    font-weight:600;
+  }
+  .week-row .wr-today-tag{
+    font-size:10px;
+    font-weight:700;
+    color:var(--today);
+    letter-spacing:.02em;
+    margin-top:2px;
+  }
+
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    padding:22px 20px 6px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .legend .dot{
+    display:inline-block;
+    width:9px;height:9px;
+    border-radius:50%;
+    margin-right:6px;
+    vertical-align:middle;
+  }
+  .legend span{ display:flex; align-items:center; }
+  .dot.paper{ background:var(--kraft); }
+  .dot.commingle{ background:#2E6B4A; }
+  .dot.shift{ background:var(--shift); }
+  .dot.today{ background:var(--today); }
+
+  footer{
+    padding:26px 20px 0;
+    font-size:12px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    border-top:1px solid var(--paper-line);
+    margin-top:18px;
+  }
+  footer a{ color:var(--green); }
+
+  @media (prefers-reduced-motion: reduce){
+    .zone-btn, .month-nav button{ transition:none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <p class="kicker">Lower Merion Township</p>
+    <h1>Curb day, <em>by zone</em></h1>
+  </header>
+
+  <div class="zones" id="zoneButtons"></div>
+
+  <div class="mode-toggle" id="modeToggle">
+    <button class="mode-btn active" data-mode="month">Month</button>
+    <button class="mode-btn" data-mode="week">Week</button>
+  </div>
+
+  <p class="day-note" id="dayNote"></p>
+
+  <div class="month-nav">
+    <button id="prevBtn" aria-label="Previous">‹</button>
+    <div class="month-title" id="monthTitle"></div>
+    <button id="nextBtn" aria-label="Next">›</button>
+  </div>
+
+  <div class="grid-wrap" id="gridWrap">
+    <div class="weekday-row">
+      <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+
+  <div class="week-list" id="weekList"></div>
+
+  <div class="legend">
+    <span><span class="dot paper"></span>Paper week</span>
+    <span><span class="dot commingle"></span>Commingle week</span>
+    <span><span class="dot shift"></span>Shifted for holiday</span>
+    <span><span class="dot today"></span>Today</span>
+  </div>
+
+  <footer>
+    Regular days — Zone 1: Mon · Zone 2: Tue · Zone 3: Wed · Zone 4: Thu.
+    A Monday–Thursday holiday pushes that week's pickup one day later for zones on or after the holiday.
+    Recycling alternates Paper / Commingle every week, unbroken since the cycle began the week of Jul 20, 2020.
+    Holiday dates are computed from standard federal observance rules — double check anything unusual against
+    <a href="https://www.lowermerion.org/departments/public-works-department/refuse-and-recycling" target="_blank" rel="noopener">lowermerion.org</a>.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+
+  const ZONE_OFFSET = { 1:0, 2:1, 3:2, 4:3 };
+  const RECYCLE_REF = new Date(2020,6,20);
+  const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DAY_ABBR = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  let currentZone = 2;
+  let viewMode = 'month'; // 'month' | 'week'
+  let viewYear = new Date().getFullYear();
+  let viewMonth = new Date().getMonth();
+  let weekAnchor = atMidnight(new Date());
+
+  function atMidnight(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+  function mondayOfWeek(d){
+    const day = d.getDay();
+    const diff = (day === 0) ? -6 : (1 - day);
+    const m = new Date(d);
+    m.setDate(d.getDate() + diff);
+    return atMidnight(m);
+  }
+
+  function addDays(d, n){ const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+  function sameDate(a, b){
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+
+  function weekType(d){
+    const days = Math.round((atMidnight(d) - RECYCLE_REF) / 86400000);
+    const weeks = Math.floor(days / 7);
+    const parity = ((weeks % 2) + 2) % 2;
+    return parity === 0 ? "Commingle" : "Paper";
+  }
+
+  function nthWeekday(year, month, weekday, n){
+    const first = new Date(year, month, 1);
+    let offset = (weekday - first.getDay() + 7) % 7;
+    return new Date(year, month, 1 + offset + (n-1)*7);
+  }
+
+  function lastWeekday(year, month, weekday){
+    const last = new Date(year, month+1, 0);
+    let offset = (last.getDay() - weekday + 7) % 7;
+    return new Date(year, month, last.getDate() - offset);
+  }
+
+  function observed(d){
+    const day = d.getDay();
+    if(day === 6) return addDays(d, -1);
+    if(day === 0) return addDays(d, 1);
+    return d;
+  }
+
+  function holidaysForYear(year){
+    return [
+      { name:"New Year's Day",  date: observed(new Date(year,0,1)) },
+      { name:"MLK Day",         date: nthWeekday(year,0,1,3) },
+      { name:"Memorial Day",    date: lastWeekday(year,4,1) },
+      { name:"Juneteenth",      date: observed(new Date(year,5,19)) },
+      { name:"Independence Day",date: observed(new Date(year,6,4)) },
+      { name:"Labor Day",       date: nthWeekday(year,8,1,1) },
+      { name:"Thanksgiving",    date: nthWeekday(year,10,4,4) },
+      { name:"Christmas Day",   date: observed(new Date(year,11,25)) },
+    ];
+  }
+
+  function holidayOffsetForWeek(monday){
+    const year = monday.getFullYear();
+    const candidates = [year-1, year, year+1].flatMap(holidaysForYear);
+    for(const h of candidates){
+      const diff = Math.round((atMidnight(h.date) - monday) / 86400000);
+      if(diff >= 0 && diff <= 3){
+        return { offset: diff, name: h.name, date: atMidnight(h.date) };
+      }
+    }
+    return null;
+  }
+
+  function pickupForWeek(zone, anyDateInWeek){
+    const monday = mondayOfWeek(anyDateInWeek);
+    const zoneOffset = ZONE_OFFSET[zone];
+    const normalDate = addDays(monday, zoneOffset);
+    const holiday = holidayOffsetForWeek(monday);
+    let shifted = false;
+    let finalDate = normalDate;
+    if(holiday && holiday.offset <= zoneOffset){
+      shifted = true;
+      finalDate = addDays(normalDate, 1);
+    }
+    return {
+      date: finalDate,
+      shifted,
+      holidayName: shifted ? holiday.name : null,
+      recyclingType: weekType(normalDate)
+    };
+  }
+
+  // ---------- wiring ----------
+  const zoneWrap = document.getElementById('zoneButtons');
+  [1,2,3,4].forEach(z=>{
+    const b = document.createElement('button');
+    b.className = 'zone-btn' + (z===currentZone ? ' active' : '');
+    b.textContent = 'Zone ' + z;
+    b.addEventListener('click', ()=>{
+      currentZone = z;
+      document.querySelectorAll('.zone-btn').forEach(el=>el.classList.remove('active'));
+      b.classList.add('active');
+      render();
+    });
+    zoneWrap.appendChild(b);
+  });
+
+  document.querySelectorAll('.mode-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      viewMode = btn.dataset.mode;
+      document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    });
+  });
+
+  document.getElementById('prevBtn').addEventListener('click', ()=>{
+    if(viewMode === 'month'){
+      viewMonth--; if(viewMonth<0){ viewMonth=11; viewYear--; }
+    } else {
+      weekAnchor = addDays(weekAnchor, -7);
+    }
+    render();
+  });
+  document.getElementById('nextBtn').addEventListener('click', ()=>{
+    if(viewMode === 'month'){
+      viewMonth++; if(viewMonth>11){ viewMonth=0; viewYear++; }
+    } else {
+      weekAnchor = addDays(weekAnchor, 7);
+    }
+    render();
+  });
+
+  function render(){
+    const today = atMidnight(new Date());
+    document.getElementById('dayNote').innerHTML =
+      'Zone ' + currentZone + ' normally collects on <strong>' + DAY_ABBR[ZONE_OFFSET[currentZone]] + '</strong>.';
+
+    const gridWrap = document.getElementById('gridWrap');
+    const weekList = document.getElementById('weekList');
+
+    if(viewMode === 'month'){
+      gridWrap.style.display = 'block';
+      weekList.style.display = 'none';
+      renderMonth(today);
+    } else {
+      gridWrap.style.display = 'none';
+      weekList.style.display = 'block';
+      renderWeek(today);
+    }
+  }
+
+  function renderMonth(today){
+    document.getElementById('monthTitle').textContent = MONTH_NAMES[viewMonth] + ' ' + viewYear;
+
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+
+    const firstOfMonth = new Date(viewYear, viewMonth, 1);
+    const startOffset = (firstOfMonth.getDay() + 6) % 7;
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+
+    for(let i=0;i<startOffset;i++){
+      const c = document.createElement('div');
+      c.className = 'cell empty';
+      grid.appendChild(c);
+    }
+
+    for(let day=1; day<=daysInMonth; day++){
+      const date = new Date(viewYear, viewMonth, day);
+      const pickup = pickupForWeek(currentZone, date);
+      const isPickupDay = sameDate(pickup.date, date);
+      const isToday = sameDate(date, today);
+
+      const c = document.createElement('div');
+      c.className = 'cell'
+        + (isPickupDay ? ' pickup' : '')
+        + (isPickupDay && pickup.shifted ? ' shifted' : '')
+        + (isToday ? ' today' : '');
+
+      const num = document.createElement('div');
+      num.className = 'num';
+      num.textContent = day;
+      c.appendChild(num);
+
+      if(isPickupDay){
+        if(pickup.shifted){
+          const tag = document.createElement('div');
+          tag.className = 'shift-tag';
+          tag.title = 'Shifted for ' + pickup.holidayName;
+          c.appendChild(tag);
+        }
+        const badge = document.createElement('div');
+        badge.className = 'badge ' + (pickup.recyclingType === 'Paper' ? 'paper' : 'commingle');
+        badge.textContent = pickup.recyclingType === 'Paper' ? 'Paper' : 'Comm.';
+        c.appendChild(badge);
+      }
+
+      grid.appendChild(c);
+    }
+  }
+
+  function renderWeek(today){
+    const monday = mondayOfWeek(weekAnchor);
+    const sunday = addDays(monday, 6);
+    const fmt = (d)=> MONTH_NAMES[d.getMonth()].slice(0,3) + ' ' + d.getDate();
+    document.getElementById('monthTitle').textContent =
+      fmt(monday) + ' – ' + fmt(sunday) + ', ' + sunday.getFullYear();
+
+    const list = document.getElementById('weekList');
+    list.innerHTML = '';
+
+    for(let i=0;i<7;i++){
+      const date = addDays(monday, i);
+      const pickup = pickupForWeek(currentZone, date);
+      const isPickupDay = sameDate(pickup.date, date);
+      const isToday = sameDate(date, today);
+
+      const row = document.createElement('div');
+      row.className = 'week-row'
+        + (isPickupDay ? ' pickup' : '')
+        + (isPickupDay && pickup.shifted ? ' shifted' : '')
+        + (isToday ? ' today' : '');
+
+      const left = document.createElement('div');
+      left.className = 'wr-date';
+      left.innerHTML = DAY_ABBR[i] + ' ' + date.getDate()
+        + '<span>' + MONTH_NAMES[date.getMonth()] + '</span>';
+      row.appendChild(left);
+
+      const right = document.createElement('div');
+      right.className = 'wr-right';
+
+      if(isPickupDay){
+        const badge = document.createElement('span');
+        badge.className = 'wr-badge ' + (pickup.recyclingType === 'Paper' ? 'paper' : 'commingle');
+        badge.textContent = 'Trash + ' + pickup.recyclingType;
+        right.appendChild(badge);
+
+        if(pickup.shifted){
+          const note = document.createElement('div');
+          note.className = 'wr-shift-note';
+          note.textContent = 'Shifted for ' + pickup.holidayName;
+          right.appendChild(note);
+        }
+      } else {
+        const none = document.createElement('div');
+        none.className = 'wr-none';
+        none.textContent = 'No pickup';
+        right.appendChild(none);
+      }
+
+      if(isToday){
+        const tag = document.createElement('div');
+        tag.className = 'wr-today-tag';
+        tag.textContent = 'TODAY';
+        right.appendChild(tag);
+      }
+
+      row.appendChild(right);
+      list.appendChild(row);
+    }
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>
