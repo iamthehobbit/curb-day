@@ -303,8 +303,8 @@
   <div class="zones" id="zoneButtons"></div>
 
   <div class="mode-toggle" id="modeToggle">
-    <button class="mode-btn active" data-mode="month">Month</button>
-    <button class="mode-btn" data-mode="week">Week</button>
+    <button class="mode-btn active" data-mode="week">Week</button>
+    <button class="mode-btn" data-mode="month">Month</button>
   </div>
 
   <p class="day-note" id="dayNote"></p>
@@ -350,7 +350,7 @@
   const DAY_ABBR = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
   let currentZone = 2;
-  let viewMode = 'month'; // 'month' | 'week'
+  let viewMode = 'week'; // 'month' | 'week'
   let viewYear = new Date().getFullYear();
   let viewMonth = new Date().getMonth();
   let weekAnchor = atMidnight(new Date());
