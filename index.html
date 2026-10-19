@@ -257,6 +257,40 @@
     margin-top:2px;
   }
 
+  /* Day view — large type for easy reading */
+  .day-view{ padding:8px 20px 0; display:none; }
+  .day-card{
+    border:3px solid var(--paper-line);
+    border-radius:18px;
+    background:#fff;
+    padding:20px 16px 22px;
+    text-align:center;
+  }
+  .day-card.today{ border-color:var(--today); background:var(--today-wash); }
+  .day-card .dv-weekday{ font-size:56px; line-height:1.05; font-weight:800; letter-spacing:-0.02em; }
+  .day-card .dv-month{ font-size:40px; line-height:1.15; font-weight:700; margin-top:6px; color:var(--green); }
+  .day-card .dv-date{ font-size:130px; line-height:1; font-weight:800; margin:2px 0 0; }
+  .day-card .dv-today{
+    display:inline-block; margin-top:8px; padding:4px 18px;
+    background:var(--today); color:var(--ink);
+    font-size:26px; font-weight:800; border-radius:999px; letter-spacing:.04em;
+  }
+  .day-sched{
+    margin-top:14px;
+    border-radius:18px;
+    padding:20px 16px;
+    text-align:center;
+    border:3px solid var(--paper-line);
+    background:#fff;
+  }
+  .day-sched.pickup{ border-color:var(--green); background:var(--green-soft); }
+  .day-sched.pickup.shifted{ border-color:var(--shift); background:var(--shift-soft); }
+  .day-sched .ds-main{ font-size:44px; line-height:1.15; font-weight:800; }
+  .day-sched .ds-type{ font-size:38px; line-height:1.2; font-weight:800; margin-top:8px; color:var(--green); }
+  .day-sched .ds-type.paper{ color:var(--kraft); }
+  .day-sched .ds-sub{ font-size:28px; line-height:1.3; font-weight:600; margin-top:10px; color:var(--ink); }
+  .day-sched .ds-shift{ font-size:26px; font-weight:700; margin-top:10px; color:var(--shift); }
+
   .legend{
     display:flex;
     flex-wrap:wrap;
@@ -304,7 +338,8 @@
   <div class="zones" id="zoneButtons"></div>
 
   <div class="mode-toggle" id="modeToggle">
-    <button class="mode-btn active" data-mode="week">Week</button>
+    <button class="mode-btn active" data-mode="day">Day</button>
+    <button class="mode-btn" data-mode="week">Week</button>
     <button class="mode-btn" data-mode="month">Month</button>
   </div>
 
@@ -324,6 +359,8 @@
   </div>
 
   <div class="week-list" id="weekList"></div>
+
+  <div class="day-view" id="dayView"></div>
 
   <div class="legend">
     <span><span class="dot paper"></span>Paper week</span>
@@ -350,10 +387,11 @@
   const DAY_ABBR = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
   let currentZone = 2;
-  let viewMode = 'week'; // 'month' | 'week'
+  let viewMode = 'day'; // 'day' | 'week' | 'month'
   let viewYear = new Date().getFullYear();
   let viewMonth = new Date().getMonth();
   let weekAnchor = atMidnight(new Date());
+  let dayAnchor = atMidnight(new Date());
 
   function atMidnight(d){ return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
 
@@ -459,6 +497,8 @@
   document.querySelectorAll('.mode-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       viewMode = btn.dataset.mode;
+      if(viewMode === 'day') dayAnchor = atMidnight(new Date());
+      if(viewMode === 'week') weekAnchor = atMidnight(new Date());
       document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       render();
@@ -468,6 +508,8 @@
   document.getElementById('prevBtn').addEventListener('click', ()=>{
     if(viewMode === 'month'){
       viewMonth--; if(viewMonth<0){ viewMonth=11; viewYear--; }
+    } else if(viewMode === 'day'){
+      dayAnchor = addDays(dayAnchor, -1);
     } else {
       weekAnchor = addDays(weekAnchor, -7);
     }
@@ -476,6 +518,8 @@
   document.getElementById('nextBtn').addEventListener('click', ()=>{
     if(viewMode === 'month'){
       viewMonth++; if(viewMonth>11){ viewMonth=0; viewYear++; }
+    } else if(viewMode === 'day'){
+      dayAnchor = addDays(dayAnchor, 1);
     } else {
       weekAnchor = addDays(weekAnchor, 7);
     }
@@ -489,16 +533,15 @@
 
     const gridWrap = document.getElementById('gridWrap');
     const weekList = document.getElementById('weekList');
+    const dayView = document.getElementById('dayView');
 
-    if(viewMode === 'month'){
-      gridWrap.style.display = 'block';
-      weekList.style.display = 'none';
-      renderMonth(today);
-    } else {
-      gridWrap.style.display = 'none';
-      weekList.style.display = 'block';
-      renderWeek(today);
-    }
+    gridWrap.style.display = viewMode === 'month' ? 'block' : 'none';
+    weekList.style.display = viewMode === 'week' ? 'block' : 'none';
+    dayView.style.display = viewMode === 'day' ? 'block' : 'none';
+
+    if(viewMode === 'month') renderMonth(today);
+    else if(viewMode === 'week') renderWeek(today);
+    else renderDay(today);
   }
 
   function renderMonth(today){
@@ -549,6 +592,46 @@
 
       grid.appendChild(c);
     }
+  }
+
+  function renderDay(today){
+    const date = dayAnchor;
+    const isToday = sameDate(date, today);
+    const dayIdx = (date.getDay() + 6) % 7;
+    const weekdayName = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][dayIdx];
+    const rel = isToday ? 'today' : (sameDate(date, addDays(today,1)) ? 'tomorrow' : (sameDate(date, addDays(today,-1)) ? 'yesterday' : 'on this day'));
+
+    document.getElementById('monthTitle').textContent = isToday ? 'Today' : weekdayName.slice(0,3) + ', ' + MONTH_NAMES[date.getMonth()].slice(0,3) + ' ' + date.getDate();
+
+    const pickup = pickupForWeek(currentZone, date);
+    const isPickupDay = sameDate(pickup.date, date);
+    const type = pickup.recyclingType;
+
+    let sched;
+    if(isPickupDay){
+      sched = '<div class="day-sched pickup' + (pickup.shifted ? ' shifted' : '') + '">'
+        + '<div class="ds-main">Trash pickup ' + rel + '</div>'
+        + '<div class="ds-type ' + (type === 'Paper' ? 'paper' : '') + '">+ ' + type + ' recycling</div>'
+        + (pickup.shifted ? '<div class="ds-shift">Moved a day later for ' + pickup.holidayName + '</div>' : '')
+        + '</div>';
+    } else {
+      const next = pickup.date > date ? pickup : pickupForWeek(currentZone, addDays(date, 7));
+      const nd = next.date;
+      sched = '<div class="day-sched">'
+        + '<div class="ds-main">No pickup ' + rel + '</div>'
+        + '<div class="ds-sub">Next pickup:<br><strong>' + ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][(nd.getDay()+6)%7]
+        + ', ' + MONTH_NAMES[nd.getMonth()] + ' ' + nd.getDate() + '</strong><br>Trash + ' + next.recyclingType + ' recycling</div>'
+        + (next.shifted ? '<div class="ds-shift">Moved a day later for ' + next.holidayName + '</div>' : '')
+        + '</div>';
+    }
+
+    document.getElementById('dayView').innerHTML =
+      '<div class="day-card' + (isToday ? ' today' : '') + '">'
+      + '<div class="dv-weekday">' + weekdayName + '</div>'
+      + '<div class="dv-date">' + date.getDate() + '</div>'
+      + '<div class="dv-month">' + MONTH_NAMES[date.getMonth()] + (date.getFullYear() !== today.getFullYear() ? ' ' + date.getFullYear() : '') + '</div>'
+      + (isToday ? '<div class="dv-today">TODAY</div>' : '')
+      + '</div>' + sched;
   }
 
   function renderWeek(today){
