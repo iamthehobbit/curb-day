@@ -322,6 +322,36 @@
   }
   footer a{ color:var(--green); }
 
+  .print-btn{
+    display:none;
+    margin:10px 20px 0;
+    padding:8px 16px;
+    border-radius:8px;
+    border:1px solid var(--green);
+    background:#fff;
+    color:var(--green);
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .print-btn:active{ background:var(--green-soft); }
+
+  @media print{
+    @page{ margin:0.5in; }
+    html,body{ background:#fff; }
+    body{ background-image:none; }
+    .app{ max-width:none; padding:0; min-height:0; }
+    .zones, .mode-toggle, .month-nav button, .print-btn, footer a{ display:none !important; }
+    .month-nav{ justify-content:center; }
+    .month-title{ font-size:28px; }
+    header, .day-note, .legend, footer{ padding-left:0; padding-right:0; }
+    .grid-wrap{ padding:0; }
+    .cell{ aspect-ratio:auto; height:1.15in; }
+    .cell .num{ font-size:15px; }
+    .badge{ font-size:12px; }
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
+
   @media (prefers-reduced-motion: reduce){
     .zone-btn, .month-nav button{ transition:none; }
   }
@@ -358,6 +388,8 @@
     <div class="cal-grid" id="calGrid"></div>
   </div>
 
+  <button class="print-btn" id="printBtn">Print / save month as PDF</button>
+
   <div class="week-list" id="weekList"></div>
 
   <div class="day-view" id="dayView"></div>
@@ -386,7 +418,17 @@
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   const DAY_ABBR = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 
-  let currentZone = 2;
+  const STORE_KEY = 'curbDay.zone';
+  function loadZone(){
+    try{
+      const z = parseInt(localStorage.getItem(STORE_KEY), 10);
+      if(z >= 1 && z <= 4) return z;
+    }catch(e){}
+    return 2;
+  }
+  function saveZone(z){ try{ localStorage.setItem(STORE_KEY, z); }catch(e){} }
+
+  let currentZone = loadZone();
   let viewMode = 'day'; // 'day' | 'week' | 'month'
   let viewYear = new Date().getFullYear();
   let viewMonth = new Date().getMonth();
@@ -480,6 +522,7 @@
   }
 
   // ---------- wiring ----------
+  const FULL_DAY = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
   const zoneWrap = document.getElementById('zoneButtons');
   [1,2,3,4].forEach(z=>{
     const b = document.createElement('button');
@@ -487,6 +530,7 @@
     b.textContent = 'Zone ' + z;
     b.addEventListener('click', ()=>{
       currentZone = z;
+      saveZone(z);
       document.querySelectorAll('.zone-btn').forEach(el=>el.classList.remove('active'));
       b.classList.add('active');
       render();
@@ -526,8 +570,25 @@
     render();
   });
 
+  document.getElementById('printBtn').addEventListener('click', ()=>window.print());
+
+  // Keep "today" correct if the app stays open past midnight
+  let lastToday = atMidnight(new Date());
+  function checkNewDay(){
+    const now = atMidnight(new Date());
+    if(sameDate(now, lastToday)) return;
+    if(sameDate(dayAnchor, lastToday)) dayAnchor = now;
+    if(sameDate(weekAnchor, lastToday)) weekAnchor = now;
+    lastToday = now;
+    render();
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkNewDay(); });
+  window.addEventListener('focus', checkNewDay);
+  setInterval(checkNewDay, 60000);
+
   function render(){
     const today = atMidnight(new Date());
+    document.getElementById('printBtn').style.display = viewMode === 'month' ? 'block' : 'none';
     document.getElementById('dayNote').innerHTML =
       'Zone ' + currentZone + ' normally collects on <strong>' + DAY_ABBR[ZONE_OFFSET[currentZone]] + '</strong>.';
 
@@ -598,8 +659,8 @@
     const date = dayAnchor;
     const isToday = sameDate(date, today);
     const dayIdx = (date.getDay() + 6) % 7;
-    const weekdayName = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][dayIdx];
-    const rel = isToday ? 'today' : (sameDate(date, addDays(today,1)) ? 'tomorrow' : (sameDate(date, addDays(today,-1)) ? 'yesterday' : 'on this day'));
+    const weekdayName = FULL_DAY[dayIdx];
+    const rel = isToday ? 'today' : (sameDate(date, addDays(today,1)) ? 'tomorrow' : (sameDate(date, addDays(today,-1)) ? 'yesterday' : 'on ' + DAY_ABBR[dayIdx] + ', ' + MONTH_NAMES[date.getMonth()].slice(0,3) + ' ' + date.getDate()));
 
     document.getElementById('monthTitle').textContent = isToday ? 'Today' : weekdayName.slice(0,3) + ', ' + MONTH_NAMES[date.getMonth()].slice(0,3) + ' ' + date.getDate();
 
@@ -619,7 +680,7 @@
       const nd = next.date;
       sched = '<div class="day-sched">'
         + '<div class="ds-main">No pickup ' + rel + '</div>'
-        + '<div class="ds-sub">Next pickup:<br><strong>' + ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"][(nd.getDay()+6)%7]
+        + '<div class="ds-sub">Next pickup:<br><strong>' + FULL_DAY[(nd.getDay()+6)%7]
         + ', ' + MONTH_NAMES[nd.getMonth()] + ' ' + nd.getDate() + '</strong><br>Trash + ' + next.recyclingType + ' recycling</div>'
         + (next.shifted ? '<div class="ds-shift">Moved a day later for ' + next.holidayName + '</div>' : '')
         + '</div>';
